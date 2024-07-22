@@ -1,0 +1,77 @@
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+public class BackupSolution {
+
+    private static final Logger logger = LogManager.getLogger(BackupSolution.class);
+    private static final String SOURCE_DIR = "/wisecow/wisecow.sh";
+    private static final String BACKUP_DIR = "/wisecow/wisecow.sh";
+    private static final String LOG_FILE = "/log";
+
+    public static void main(String[] args) {
+        try {
+            backup();
+        } catch (IOException e) {
+            logger.error("Backup failed", e);
+        }
+    }
+
+    public static void backup() throws IOException {
+        Path sourcePath = Paths.get(SOURCE_DIR);
+        Path backupPath = Paths.get(BACKUP_DIR);
+
+        // Create backup directory if it does not exist
+        if (!Files.exists(backupPath)) {
+            Files.createDirectories(backupPath);
+        }
+
+        // Use DirectoryStream to iterate over files and directories
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sourcePath)) {
+            for (Path path : stream) {
+                Path targetPath = backupPath.resolve(sourcePath.relativize(path));
+                if (Files.isDirectory(path)) {
+                    copyDirectory(path, targetPath);
+                } else {
+                    copyFile(path, targetPath);
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Error while iterating through directory", e);
+            throw e;
+        }
+
+        logger.info("Backup completed successfully");
+    }
+
+    private static void copyDirectory(Path source, Path target) throws IOException {
+        Files.walk(source).forEach(path -> {
+            try {
+                Path targetPath = target.resolve(source.relativize(path));
+                if (Files.isDirectory(path)) {
+                    if (!Files.exists(targetPath)) {
+                        Files.createDirectory(targetPath);
+                    }
+                } else {
+                    copyFile(path, targetPath);
+                }
+            } catch (IOException e) {
+                logger.error("Error while copying directory", e);
+            }
+        });
+    }
+
+    private static void copyFile(Path source, Path target) throws IOException {
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        logger.info("File copied: " + source.toString() + " to " + target.toString());
+    }
+
+    // Custom logger setup (if needed)
+    static {
+        System.setProperty("log4j.configurationFile", "path/to/log4j2.xml");
+    }
+}
